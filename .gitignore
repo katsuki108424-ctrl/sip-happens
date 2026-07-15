@@ -1,0 +1,4 @@
+donnees.json
+_pycache_/
+*.pyc 
+.agents/
