@@ -6,6 +6,7 @@ from tkinter import ttk, messagebox
 try:
     with open("donnees.json", "r", encoding="utf-8") as fichier:
         donnees = json.load (fichier)
+        objectif = donnees.get("objectif", 2000)
         date_sauvegardee = donnees.get("date")
         date_aujourdhui = date.today().isoformat()
         if date_sauvegardee == date_aujourdhui:
@@ -14,7 +15,7 @@ try:
             quantite_bue = 0
 except FileNotFoundError:
     quantite_bue = 0
-objectif = 2000
+    objectif = 2000
 taille_verre = 250
 progression_initiale = (quantite_bue / objectif) * 100
 intervalle_rappel = 30 * 60 * 1000
@@ -49,11 +50,41 @@ def annuler_verre():
 def sauvegarder_donnees():
     donnees = {
         "quantite_bue": quantite_bue,
+        "objectif": objectif,
         "date": date.today().isoformat()
     }
 
     with open("donnees.json","w", encoding="utf-8") as fichier:
         json.dump(donnees, fichier)
+def modifier_objectif():
+    global objectif
+
+
+    try:
+        nouvel_objectif = int(champ_objectif.get())
+    except ValueError:
+        messagebox.showerror(
+            "Valeur incorrecte",
+            "Entre un objectif en chiffres uniquement"
+        )
+        return
+    if nouvel_objectif <= 0:
+        messagebox.showerror(
+            "Valeur incorrecte",
+            "L'objectif doit être supérieur à 0 ml"
+        )
+        return
+    objectif = nouvel_objectif
+    compteur.config(text=f"{quantite_bue} ml / {objectif} ml")
+
+    progression = (quantite_bue / objectif) * 100
+    pourcentage.config(text=f"{progression:.0f}%")
+
+    barre_progression.config(maximum=objectif)
+    barre_progression["value"] = min(quantite_bue, objectif)
+    print(objectif)
+    sauvegarder_donnees()
+
 
 fenetre = tk.Tk ()
 fenetre.title("Sip Happens!")
@@ -69,6 +100,20 @@ titre = tk.Label (fenetre, text="Bienvenue sur Sip Happens!",
 font=("Segoe UI", 20, "bold")
 )
 titre.pack()
+texte_objectif = tk.Label(
+    fenetre,
+    text="objectif du jour en ml"
+)
+texte_objectif.pack()
+champ_objectif = tk.Entry(fenetre)
+champ_objectif.insert(0, str(objectif))
+champ_objectif.pack()
+bouton_objectif = tk.Button(
+    fenetre,
+    text="modifier l'objectif",
+    command=modifier_objectif
+)
+bouton_objectif.pack()
 compteur = tk.Label (
     fenetre,
     text=f"{quantite_bue} ml / {objectif} ml"
