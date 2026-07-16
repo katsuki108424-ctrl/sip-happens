@@ -9,6 +9,7 @@ try:
         objectif = donnees.get("objectif", 2000)
         taille_verre = donnees.get("taille_verre", 250)
         minutes_rappel = donnees.get("minutes_rappel", 30)
+        rappels_actifs = donnees.get ("rappels_actifs", True)
         date_sauvegardee = donnees.get("date")
         date_aujourdhui = date.today().isoformat()
         if date_sauvegardee == date_aujourdhui:
@@ -20,8 +21,11 @@ except FileNotFoundError:
     objectif = 2000
     taille_verre = 250
     minutes_rappel = 30
+    rappels_actifs =  True
 progression_initiale = (quantite_bue / objectif) * 100
 intervalle_rappel = minutes_rappel * 60 * 1000
+rappel_programme = None
+
 def enregistrer_verre():
     global quantite_bue
     quantite_bue = quantite_bue + taille_verre
@@ -56,6 +60,7 @@ def sauvegarder_donnees():
         "objectif": objectif,
         "taille_verre": taille_verre,
         "minutes_rappel": minutes_rappel,
+        "rappels_actifs": rappels_actifs,
         "date": date.today().isoformat()
     }
 
@@ -100,11 +105,45 @@ def modifier_taille_verre():
 def modifier_intervalle():
     global intervalle_rappel
     global minutes_rappel
+    global rappel_programme
 
     minutes_rappel = int(choix_intervalle.get())
     intervalle_rappel = minutes_rappel * 60 * 1000
+
+    if rappel_programme is not None:
+        fenetre.after_cancel(rappel_programme)
+
+    if rappels_actifs:
+        rappel_programme = fenetre.after(
+            intervalle_rappel,
+            afficher_rappel
+        )
+    else:
+        rappel_programme = None
+
     print (intervalle_rappel)
     sauvegarder_donnees()
+
+def basculer_rappels():
+    global rappels_actifs
+    global rappel_programme
+
+    rappels_actifs = not rappels_actifs
+
+    if rappels_actifs:
+        bouton_rappels.config(text="Désactiver les rappels")
+        rappel_programme = fenetre.after(
+            intervalle_rappel,
+            afficher_rappel
+        )
+    else:
+        bouton_rappels.config(text="Activer les rappels")
+
+        if rappel_programme is not None:
+            fenetre.after_cancel(rappel_programme)
+            rappel_programme = None
+
+    sauvegarder_donnees()    
 
 fenetre = tk.Tk ()
 fenetre.title("Sip Happens!")
@@ -168,6 +207,17 @@ choix_intervalle.bind(
     lambda evenement: modifier_intervalle()
 )
 choix_intervalle.pack()
+
+bouton_rappels = tk.Button(
+    fenetre,
+    text=(
+        "Désactiver les rappels"
+        if rappels_actifs
+        else "Activer les rappels"
+    ),
+    command=basculer_rappels
+)
+bouton_rappels.pack()
 compteur = tk.Label (
     fenetre,
     text=f"{quantite_bue} ml / {objectif} ml"
@@ -199,11 +249,24 @@ bouton_annuler = tk.Button(
 bouton_annuler.pack()
 
 def afficher_rappel():
+    global rappel_programme
+
     messagebox.showinfo(
         "Sip Happens!",
         "Petite pause : Pense à boire de l'eau!"
     )
-    fenetre.after(intervalle_rappel, afficher_rappel)
+    if rappels_actifs:
+        rappel_programme = fenetre.after(
+            intervalle_rappel,
+            afficher_rappel
+        )
+    else:
+        rappel_programme = None
 
-fenetre.after(intervalle_rappel, afficher_rappel)
+if rappels_actifs:
+    rappel_programme = fenetre.after(
+        intervalle_rappel,
+        afficher_rappel
+    )
+
 fenetre.mainloop()
