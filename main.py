@@ -145,6 +145,14 @@ def basculer_rappels():
 
     sauvegarder_donnees()    
 
+def afficher_reglages():
+    frame_principal.pack_forget()
+    frame_reglages.pack()
+
+def afficher_principal():
+    frame_reglages.pack_forget()
+    frame_principal.pack()    
+
 fenetre = tk.Tk ()
 fenetre.title("Sip Happens!")
 fenetre.geometry("400x500")
@@ -155,31 +163,38 @@ style.configure(
     background= "#20CFFF",
     troughcolor="#D9F8FF"
 )
-titre = tk.Label (fenetre, text="Bienvenue sur Sip Happens!",
-font=("Segoe UI", 20, "bold")
+
+frame_principal = tk.Frame(fenetre)
+frame_principal.pack()
+frame_reglages = tk.Frame(fenetre)
+frame_reglages.pack()
+titre = tk.Label (
+    frame_principal,
+    text="Bienvenue sur Sip Happens!",
+    font=("Segoe UI", 20, "bold")
 )
 titre.pack()
 texte_objectif = tk.Label(
-    fenetre,
+    frame_reglages,
     text="objectif du jour en ml"
 )
 texte_objectif.pack()
-champ_objectif = tk.Entry(fenetre)
+champ_objectif = tk.Entry(frame_reglages)
 champ_objectif.insert(0, str(objectif))
 champ_objectif.pack()
 bouton_objectif = tk.Button(
-    fenetre,
+    frame_reglages,
     text="modifier l'objectif",
     command=modifier_objectif
 )
 bouton_objectif.pack()
 texte_taille_verre = tk.Label(
-    fenetre,
+    frame_reglages,
     text="Taille du verre en ml"
 )
 texte_taille_verre.pack()
 choix_taille_verre = ttk.Combobox(
-    fenetre,
+    frame_reglages,
     values=[150, 250, 330, 500],
     state="readonly"
 )
@@ -191,12 +206,12 @@ choix_taille_verre.bind(
 )
 choix_taille_verre.pack()
 texte_intervalle = tk.Label(
-    fenetre,
+    frame_reglages,
     text="Fréquence des rappels"
 )
 texte_intervalle.pack()
 choix_intervalle = ttk.Combobox(
-    fenetre,
+    frame_reglages,
     values=[30, 45, 60, 90],
     state="readonly"
 )
@@ -209,7 +224,7 @@ choix_intervalle.bind(
 choix_intervalle.pack()
 
 bouton_rappels = tk.Button(
-    fenetre,
+    frame_reglages,
     text=(
         "Désactiver les rappels"
         if rappels_actifs
@@ -218,17 +233,28 @@ bouton_rappels = tk.Button(
     command=basculer_rappels
 )
 bouton_rappels.pack()
+
+bouton_retour = tk.Button(
+    frame_reglages,
+    text="Retour",
+    command=afficher_principal
+)
+bouton_retour.pack()
+
+frame_reglages.pack_forget()
+
+
 compteur = tk.Label (
-    fenetre,
+    frame_principal,
     text=f"{quantite_bue} ml / {objectif} ml"
     )
 compteur.pack ()
 pourcentage = tk.Label (
-    fenetre,
+    frame_principal,
     text=f"{progression_initiale:.0f}%")
 pourcentage.pack ()
 barre_progression = ttk.Progressbar(
-    fenetre,
+    frame_principal,
     style="Eau.Horizontal.TProgressbar",
     maximum=objectif,
     value=min(quantite_bue, objectif),
@@ -236,17 +262,24 @@ barre_progression = ttk.Progressbar(
 )
 barre_progression.pack()
 bouton_boire = tk.Button (
-    fenetre,
+    frame_principal,
     text="Je viens de boire 💦", 
     command=enregistrer_verre
     )
 bouton_boire.pack()
 bouton_annuler = tk.Button(
-    fenetre,
+    frame_principal,
     text="Annuler le dernier verre",
     command=annuler_verre
 )
 bouton_annuler.pack()
+
+bouton_ouvrir_reglages = tk.Button(
+    frame_principal,
+    text="Réglages",
+    command=afficher_reglages
+)
+bouton_ouvrir_reglages.pack ()
 
 def afficher_rappel():
     global rappel_programme
