@@ -8,6 +8,7 @@ try:
         donnees = json.load (fichier)
         objectif = donnees.get("objectif", 2000)
         taille_verre = donnees.get("taille_verre", 250)
+        minutes_rappel = donnees.get("minutes_rappel", 30)
         date_sauvegardee = donnees.get("date")
         date_aujourdhui = date.today().isoformat()
         if date_sauvegardee == date_aujourdhui:
@@ -18,8 +19,9 @@ except FileNotFoundError:
     quantite_bue = 0
     objectif = 2000
     taille_verre = 250
+    minutes_rappel = 30
 progression_initiale = (quantite_bue / objectif) * 100
-intervalle_rappel = 30 * 60 * 1000
+intervalle_rappel = minutes_rappel * 60 * 1000
 def enregistrer_verre():
     global quantite_bue
     quantite_bue = quantite_bue + taille_verre
@@ -53,6 +55,7 @@ def sauvegarder_donnees():
         "quantite_bue": quantite_bue,
         "objectif": objectif,
         "taille_verre": taille_verre,
+        "minutes_rappel": minutes_rappel,
         "date": date.today().isoformat()
     }
 
@@ -92,6 +95,15 @@ def modifier_taille_verre():
 
     taille_verre = int(choix_taille_verre.get())
     print (taille_verre)
+    sauvegarder_donnees()
+
+def modifier_intervalle():
+    global intervalle_rappel
+    global minutes_rappel
+
+    minutes_rappel = int(choix_intervalle.get())
+    intervalle_rappel = minutes_rappel * 60 * 1000
+    print (intervalle_rappel)
     sauvegarder_donnees()
 
 fenetre = tk.Tk ()
@@ -139,6 +151,23 @@ choix_taille_verre.bind(
     lambda evenement: modifier_taille_verre()
 )
 choix_taille_verre.pack()
+texte_intervalle = tk.Label(
+    fenetre,
+    text="Fréquence des rappels"
+)
+texte_intervalle.pack()
+choix_intervalle = ttk.Combobox(
+    fenetre,
+    values=[30, 45, 60, 90],
+    state="readonly"
+)
+choix_intervalle.set(minutes_rappel)
+
+choix_intervalle.bind(
+    "<<ComboboxSelected>>",
+    lambda evenement: modifier_intervalle()
+)
+choix_intervalle.pack()
 compteur = tk.Label (
     fenetre,
     text=f"{quantite_bue} ml / {objectif} ml"
