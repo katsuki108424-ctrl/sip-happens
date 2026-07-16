@@ -7,6 +7,7 @@ try:
     with open("donnees.json", "r", encoding="utf-8") as fichier:
         donnees = json.load (fichier)
         objectif = donnees.get("objectif", 2000)
+        taille_verre = donnees.get("taille_verre", 250)
         date_sauvegardee = donnees.get("date")
         date_aujourdhui = date.today().isoformat()
         if date_sauvegardee == date_aujourdhui:
@@ -16,7 +17,7 @@ try:
 except FileNotFoundError:
     quantite_bue = 0
     objectif = 2000
-taille_verre = 250
+    taille_verre = 250
 progression_initiale = (quantite_bue / objectif) * 100
 intervalle_rappel = 30 * 60 * 1000
 def enregistrer_verre():
@@ -51,6 +52,7 @@ def sauvegarder_donnees():
     donnees = {
         "quantite_bue": quantite_bue,
         "objectif": objectif,
+        "taille_verre": taille_verre,
         "date": date.today().isoformat()
     }
 
@@ -85,6 +87,12 @@ def modifier_objectif():
     print(objectif)
     sauvegarder_donnees()
 
+def modifier_taille_verre():
+    global taille_verre
+
+    taille_verre = int(choix_taille_verre.get())
+    print (taille_verre)
+    sauvegarder_donnees()
 
 fenetre = tk.Tk ()
 fenetre.title("Sip Happens!")
@@ -114,6 +122,23 @@ bouton_objectif = tk.Button(
     command=modifier_objectif
 )
 bouton_objectif.pack()
+texte_taille_verre = tk.Label(
+    fenetre,
+    text="Taille du verre en ml"
+)
+texte_taille_verre.pack()
+choix_taille_verre = ttk.Combobox(
+    fenetre,
+    values=[150, 250, 330, 500],
+    state="readonly"
+)
+choix_taille_verre.set(taille_verre)
+
+choix_taille_verre.bind(
+    "<<ComboboxSelected>>",
+    lambda evenement: modifier_taille_verre()
+)
+choix_taille_verre.pack()
 compteur = tk.Label (
     fenetre,
     text=f"{quantite_bue} ml / {objectif} ml"
