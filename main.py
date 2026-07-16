@@ -1,8 +1,30 @@
 print ("Welcome to Sip Happens!")
 import json
+import ctypes
 from datetime import date
+from pathlib import Path
 import tkinter as tk
-from tkinter import ttk, messagebox
+import customtkinter as ctk
+from tkinter import messagebox
+
+DOSSIER_POLICES = Path(__file__).parent / "assets" / "fonts"
+
+def charger_polices():
+    fichiers_polices = [
+        DOSSIER_POLICES / "kalam" / "Kalam-Regular.ttf",
+        DOSSIER_POLICES / "kalam" / "Kalam-Bold.ttf",
+        DOSSIER_POLICES / "patrick-hand" / "PatrickHand-Regular.ttf",
+    ]
+
+    for fichier_police in fichiers_polices:
+        ctypes.windll.gdi32.AddFontResourceExW(
+            str(fichier_police),
+            0x10,
+            0
+        )
+
+charger_polices()
+
 try:
     with open("donnees.json", "r", encoding="utf-8") as fichier:
         donnees = json.load (fichier)
@@ -32,7 +54,7 @@ def enregistrer_verre():
     progression = (quantite_bue / objectif) * 100
     pourcentage.config(text=f"{progression:.0f}%")
     compteur.config(text=f"{quantite_bue} ml / {objectif} ml")
-    barre_progression["value"] = min(quantite_bue, objectif)
+    barre_progression.set(min(quantite_bue / objectif, 1))
     print (quantite_bue)
     sauvegarder_donnees()
 
@@ -46,7 +68,7 @@ def annuler_verre():
         progression = (quantite_bue / objectif) * 100
         pourcentage.config(text=f"{progression:.0f}%")
         compteur.config(text=f"{quantite_bue} ml / {objectif} ml")
-        barre_progression["value"] = min(quantite_bue, objectif)
+        barre_progression.set(min(quantite_bue / objectif, 1))
 
         if quantite_bue < objectif:
             titre.config(text="Bienvenue sur Sip Happens!")
@@ -90,8 +112,7 @@ def modifier_objectif():
     progression = (quantite_bue / objectif) * 100
     pourcentage.config(text=f"{progression:.0f}%")
 
-    barre_progression.config(maximum=objectif)
-    barre_progression["value"] = min(quantite_bue, objectif)
+    barre_progression.set(min(quantite_bue / objectif, 1))
     print(objectif)
     sauvegarder_donnees()
 
@@ -153,162 +174,250 @@ def afficher_principal():
     frame_reglages.pack_forget()
     frame_principal.pack()    
 
-fenetre = tk.Tk ()
+ctk.set_appearance_mode("light")
+
+fenetre = ctk.CTk()
 fenetre.title("Sip Happens!")
 fenetre.geometry("400x500")
-fenetre.configure(bg="#DDF8FF")
-style = ttk.Style()
-style.theme_use("clam")
-style.configure(
-    "Eau.Horizontal.TProgressbar",
-    background= "#20CFFF",
-    troughcolor="#D9F8FF"
-)
+fenetre.configure(fg_color="#DDF8FF")
 
-frame_principal = tk.Frame(
+frame_principal = ctk.CTkFrame(
     fenetre,
-    bg="#DDF8FF"
+    fg_color="#DDF8FF"
     )
 frame_principal.pack()
-frame_reglages = tk.Frame(
+frame_reglages = ctk.CTkFrame(
     fenetre,
-    bg="#DDF8FF",
+    fg_color="#DDF8FF",
     )
 frame_reglages.pack()
-titre = tk.Label (
+titre = ctk.CTkLabel(
     frame_principal,
     text="Bienvenue sur Sip Happens!",
-    bg="#DDF8FF",
-    font=("Segoe UI", 20, "bold")
+    fg_color="transparent",
+    font=ctk.CTkFont(family="Kalam", size=28, weight="bold"),
+    text_color="#8B00FF"
 )
 titre.pack(pady=(30, 20))
-texte_objectif = tk.Label(
+
+titre_reglages = ctk.CTkLabel(
     frame_reglages,
-    bg="#DDF8FF",
-    text="objectif du jour en ml"
+    text="Réglages",
+    fg_color="transparent",
+    font=ctk.CTkFont(family="Kalam", size=28, weight="bold"),
+    text_color="#8B00FF"
+)
+titre_reglages.pack(pady=(22, 12))
+
+texte_objectif = ctk.CTkLabel(
+    frame_reglages,
+    fg_color="transparent",
+    text="Objectif du jour en ml",
+    font=ctk.CTkFont(family="Patrick Hand", size=19),
+    text_color="#006DFF"
 )
 texte_objectif.pack()
-champ_objectif = tk.Entry(frame_reglages)
-champ_objectif.insert(0, str(objectif))
-champ_objectif.pack()
-bouton_objectif = tk.Button(
+champ_objectif = ctk.CTkEntry(
     frame_reglages,
-    text="modifier l'objectif",
+    width=220,
+    height=38,
+    corner_radius=12,
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    fg_color="#F3FCFF",
+    text_color="#003CFF",
+    border_color="#20CFFF",
+    border_width=2
+)
+champ_objectif.insert(0, str(objectif))
+champ_objectif.pack(pady=(2, 8))
+bouton_objectif = ctk.CTkButton(
+    frame_reglages,
+    text="Modifier l'objectif",
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    width=220,
+    height=38,
+    corner_radius=13,
+    fg_color="#20CFFF",
+    hover_color="#00AFCF",
+    text_color="#003CFF",
+    border_width=2,
+    border_color="#007EA7",
     command=modifier_objectif
 )
-bouton_objectif.pack()
-texte_taille_verre = tk.Label(
+bouton_objectif.pack(pady=(0, 10))
+texte_taille_verre = ctk.CTkLabel(
     frame_reglages,
-    bg="#DDF8FF",
-    text="Taille du verre en ml"
+    fg_color="transparent",
+    text="Taille du verre en ml",
+    font=ctk.CTkFont(family="Patrick Hand", size=19),
+    text_color="#006DFF"
 )
 texte_taille_verre.pack()
-choix_taille_verre = ttk.Combobox(
+choix_taille_verre = ctk.CTkComboBox(
     frame_reglages,
-    values=[150, 250, 330, 500],
-    state="readonly"
+    values=["150", "250", "330", "500"],
+    state="readonly",
+    width=220,
+    height=38,
+    corner_radius=12,
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    dropdown_font=ctk.CTkFont(family="Patrick Hand", size=17),
+    fg_color="#F3FCFF",
+    border_color="#20CFFF",
+    button_color="#20CFFF",
+    button_hover_color="#00AFCF",
+    text_color="#003CFF",
+    dropdown_fg_color="#F3FCFF",
+    dropdown_hover_color="#D9F8FF",
+    dropdown_text_color="#003CFF",
+    command=lambda choix: modifier_taille_verre()
 )
-choix_taille_verre.set(taille_verre)
-
-choix_taille_verre.bind(
-    "<<ComboboxSelected>>",
-    lambda evenement: modifier_taille_verre()
-)
-choix_taille_verre.pack()
-texte_intervalle = tk.Label(
+choix_taille_verre.set(str(taille_verre))
+choix_taille_verre.pack(pady=(2, 10))
+texte_intervalle = ctk.CTkLabel(
     frame_reglages,
-    bg="#DDF8FF",
-    text="Fréquence des rappels"
+    fg_color="transparent",
+    text="Fréquence des rappels",
+    font=ctk.CTkFont(family="Patrick Hand", size=19),
+    text_color="#006DFF"
 )
 texte_intervalle.pack()
-choix_intervalle = ttk.Combobox(
+choix_intervalle = ctk.CTkComboBox(
     frame_reglages,
-    values=[30, 45, 60, 90],
-    state="readonly"
+    values=["30", "45", "60", "90"],
+    state="readonly",
+    width=220,
+    height=38,
+    corner_radius=12,
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    dropdown_font=ctk.CTkFont(family="Patrick Hand", size=17),
+    fg_color="#F3FCFF",
+    border_color="#20CFFF",
+    button_color="#20CFFF",
+    button_hover_color="#00AFCF",
+    text_color="#003CFF",
+    dropdown_fg_color="#F3FCFF",
+    dropdown_hover_color="#D9F8FF",
+    dropdown_text_color="#003CFF",
+    command=lambda choix: modifier_intervalle()
 )
-choix_intervalle.set(minutes_rappel)
+choix_intervalle.set(str(minutes_rappel))
+choix_intervalle.pack(pady=(2, 10))
 
-choix_intervalle.bind(
-    "<<ComboboxSelected>>",
-    lambda evenement: modifier_intervalle()
-)
-choix_intervalle.pack()
-
-bouton_rappels = tk.Button(
+bouton_rappels = ctk.CTkButton(
     frame_reglages,
     text=(
         "Désactiver les rappels"
         if rappels_actifs
         else "Activer les rappels"
     ),
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    width=220,
+    height=38,
+    corner_radius=13,
+    fg_color="#20CFFF",
+    hover_color="#00AFCF",
+    text_color="#003CFF",
+    border_width=2,
+    border_color="#007EA7",
     command=basculer_rappels
 )
-bouton_rappels.pack()
+bouton_rappels.pack(pady=(0, 8))
 
-bouton_retour = tk.Button(
+bouton_retour = ctk.CTkButton(
     frame_reglages,
     text="Retour",
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    width=220,
+    height=38,
+    corner_radius=13,
+    fg_color="#8B00FF",
+    hover_color="#6D28D9",
+    text_color="white",
     command=afficher_principal
 )
-bouton_retour.pack()
+bouton_retour.pack(pady=(0, 12))
 
 frame_reglages.pack_forget()
 
 
-compteur = tk.Label (
+compteur = ctk.CTkLabel(
     frame_principal,
-    bg="#DDF8FF",
+    fg_color="transparent",
     text=f"{quantite_bue} ml / {objectif} ml",
-    font=("Segoe UI", 16, "bold"),
-    fg="#007EA7"
+    font=ctk.CTkFont(family="Patrick Hand", size=24),
+    text_color="#006DFF"
     )
 compteur.pack (pady=10)
-pourcentage = tk.Label (
+pourcentage = ctk.CTkLabel(
     frame_principal,
-    bg="#DDF8FF",
-    font=('Segoe UI', 13, "bold"),
-    fg="#00AFCF",
+    fg_color="transparent",
+    font=ctk.CTkFont(family="Patrick Hand", size=21),
+    text_color="#00AEEB",
     text=f"{progression_initiale:.0f}%")
 pourcentage.pack ()
-barre_progression = ttk.Progressbar(
+barre_progression = ctk.CTkProgressBar(
     frame_principal,
-    style="Eau.Horizontal.TProgressbar",
-    maximum=objectif,
-    value=min(quantite_bue, objectif),
-    length=300
+    width=300,
+    height=18,
+    corner_radius=9,
+    fg_color="#D9F8FF",
+    progress_color="#20CFFF"
 )
+barre_progression.set(min(quantite_bue / objectif, 1))
 barre_progression.pack()
-bouton_boire = tk.Button (
+bouton_boire = ctk.CTkButton(
     frame_principal,
     text="Je viens de boire 💦", 
-    font=("Segoe UI", 14, "bold"),
-    bg="#20CFFF",
-    fg="#003B4D",
-    activebackground="#00AFCF",
-    activeforeground="white",
-    width=22,
-    height=2,
-    borderwidth=2,
-    relief="solid",
-    highlightbackground="#007EA7",
-    highlightthickness=2,
-    cursor="hand2",
+    font=ctk.CTkFont(family="Patrick Hand", size=21),
+    fg_color="#20CFFF",
+    text_color="#003CFF",
+    hover_color="#00AFCF",
+    width=260,
+    height=52,
+    corner_radius=18,
+    border_width=2,
+    border_color="#007EA7",
     command=enregistrer_verre
     )
 bouton_boire.pack(pady=(25, 10))
-bouton_annuler = tk.Button(
+frame_actions_secondaires = ctk.CTkFrame(
     frame_principal,
+    fg_color="transparent"
+)
+frame_actions_secondaires.pack(pady=10)
+
+bouton_annuler = ctk.CTkButton(
+    frame_actions_secondaires,
     text="Annuler le dernier verre",
+    font=ctk.CTkFont(family="Patrick Hand", size=17),
+    width=145,
+    height=40,
+    corner_radius=14,
+    fg_color="#20CFFF",
+    hover_color="#00AFCF",
+    text_color="#003CFF",
+    border_width=2,
+    border_color="#007EA7",
     command=annuler_verre
 )
-bouton_annuler.pack()
+bouton_annuler.pack(side="left", padx=8)
 
-bouton_ouvrir_reglages = tk.Button(
-    frame_principal,
+bouton_ouvrir_reglages = ctk.CTkButton(
+    frame_actions_secondaires,
     text="Réglages",
+    font=ctk.CTkFont(family="Patrick Hand", size=17),
+    width=145,
+    height=40,
+    corner_radius=14,
+    fg_color="#20CFFF",
+    hover_color="#00AFCF",
+    text_color="#003CFF",
+    border_width=2,
+    border_color="#007EA7",
     command=afficher_reglages
 )
-bouton_ouvrir_reglages.pack ()
+bouton_ouvrir_reglages.pack(side="left", padx=8)
 
 def afficher_rappel():
     global rappel_programme
