@@ -6,8 +6,10 @@ from pathlib import Path
 import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox
+from PIL import Image
 
 DOSSIER_POLICES = Path(__file__).parent / "assets" / "fonts"
+DOSSIER_MASCOTTE = Path(__file__).parent / "assets" / "mascotte"
 
 def charger_polices():
     fichiers_polices = [
@@ -47,31 +49,61 @@ except FileNotFoundError:
 progression_initiale = (quantite_bue / objectif) * 100
 intervalle_rappel = minutes_rappel * 60 * 1000
 rappel_programme = None
+retour_mascotte_programme = None
+
+def changer_mascotte(etat):
+    nouvelle_image = images_mascotte[etat]
+    label_mascotte.configure(image=nouvelle_image)
+    label_mascotte.image = nouvelle_image
+    label_mascotte.update_idletasks()
+
+def revenir_mascotte_neutre():
+    global retour_mascotte_programme
+
+    if quantite_bue < objectif:
+        changer_mascotte("neutre")
+
+    retour_mascotte_programme = None
 
 def enregistrer_verre():
     global quantite_bue
+    global retour_mascotte_programme
+
     quantite_bue = quantite_bue + taille_verre
     progression = (quantite_bue / objectif) * 100
-    pourcentage.config(text=f"{progression:.0f}%")
-    compteur.config(text=f"{quantite_bue} ml / {objectif} ml")
+    pourcentage.configure(text=f"{progression:.0f}%")
+    compteur.configure(text=f"{quantite_bue} ml / {objectif} ml")
     barre_progression.set(min(quantite_bue / objectif, 1))
     print (quantite_bue)
     sauvegarder_donnees()
 
     if quantite_bue >= objectif:
-        titre.config(text="Youhou! Objectif atteint!🥳")
+        titre.configure(text="Youhou! Objectif atteint!🥳")
+        changer_mascotte("objectif")
+    else:
+        changer_mascotte("heureux")
+
+        if retour_mascotte_programme is not None:
+            fenetre.after_cancel(retour_mascotte_programme)
+
+        retour_mascotte_programme = fenetre.after(
+            6000,
+            revenir_mascotte_neutre
+        )
+
 def annuler_verre():
     global quantite_bue
 
     if quantite_bue >= taille_verre:
         quantite_bue = quantite_bue - taille_verre
         progression = (quantite_bue / objectif) * 100
-        pourcentage.config(text=f"{progression:.0f}%")
-        compteur.config(text=f"{quantite_bue} ml / {objectif} ml")
+        pourcentage.configure(text=f"{progression:.0f}%")
+        compteur.configure(text=f"{quantite_bue} ml / {objectif} ml")
         barre_progression.set(min(quantite_bue / objectif, 1))
 
         if quantite_bue < objectif:
-            titre.config(text="Bienvenue sur Sip Happens!")
+            titre.configure(text="Bienvenue sur Sip Happens!")
+            changer_mascotte("neutre")
 
         print(quantite_bue)
         sauvegarder_donnees()
@@ -107,10 +139,10 @@ def modifier_objectif():
         )
         return
     objectif = nouvel_objectif
-    compteur.config(text=f"{quantite_bue} ml / {objectif} ml")
+    compteur.configure(text=f"{quantite_bue} ml / {objectif} ml")
 
     progression = (quantite_bue / objectif) * 100
-    pourcentage.config(text=f"{progression:.0f}%")
+    pourcentage.configure(text=f"{progression:.0f}%")
 
     barre_progression.set(min(quantite_bue / objectif, 1))
     print(objectif)
@@ -152,13 +184,13 @@ def basculer_rappels():
     rappels_actifs = not rappels_actifs
 
     if rappels_actifs:
-        bouton_rappels.config(text="Désactiver les rappels")
+        bouton_rappels.configure(text="Désactiver les rappels")
         rappel_programme = fenetre.after(
             intervalle_rappel,
             afficher_rappel
         )
     else:
-        bouton_rappels.config(text="Activer les rappels")
+        bouton_rappels.configure(text="Activer les rappels")
 
         if rappel_programme is not None:
             fenetre.after_cancel(rappel_programme)
@@ -178,7 +210,7 @@ ctk.set_appearance_mode("light")
 
 fenetre = ctk.CTk()
 fenetre.title("Sip Happens!")
-fenetre.geometry("400x500")
+fenetre.geometry("400x680")
 fenetre.configure(fg_color="#DDF8FF")
 
 frame_principal = ctk.CTkFrame(
@@ -199,6 +231,39 @@ titre = ctk.CTkLabel(
     text_color="#8B00FF"
 )
 titre.pack(pady=(30, 20))
+
+images_mascotte = {
+    "neutre": ctk.CTkImage(
+        light_image=Image.open(DOSSIER_MASCOTTE / "axolotl-neutre.png"),
+        size=(280, 187)
+    ),
+    "triste": ctk.CTkImage(
+        light_image=Image.open(DOSSIER_MASCOTTE / "axolotl-triste.png"),
+        size=(280, 187)
+    ),
+    "heureux": ctk.CTkImage(
+        light_image=Image.open(DOSSIER_MASCOTTE / "axolotl-heureux.png"),
+        size=(280, 187)
+    ),
+    "objectif": ctk.CTkImage(
+        light_image=Image.open(DOSSIER_MASCOTTE / "axolotl-objectif.png"),
+        size=(280, 187)
+    ),
+}
+
+etat_mascotte_initial = (
+    "objectif"
+    if quantite_bue >= objectif
+    else "neutre"
+)
+
+label_mascotte = ctk.CTkLabel(
+    frame_principal,
+    text="",
+    image=images_mascotte[etat_mascotte_initial],
+    fg_color="transparent"
+)
+label_mascotte.pack(pady=(0, 4))
 
 titre_reglages = ctk.CTkLabel(
     frame_reglages,
@@ -422,10 +487,16 @@ bouton_ouvrir_reglages.pack(side="left", padx=8)
 def afficher_rappel():
     global rappel_programme
 
+    quantite_avant_rappel = quantite_bue
+
     messagebox.showinfo(
         "Sip Happens!",
         "Petite pause : Pense à boire de l'eau!"
     )
+
+    if quantite_bue == quantite_avant_rappel and quantite_bue < objectif:
+        changer_mascotte("triste")
+
     if rappels_actifs:
         rappel_programme = fenetre.after(
             intervalle_rappel,
