@@ -156,6 +156,7 @@ def afficher_principal():
 fenetre = tk.Tk ()
 fenetre.title("Sip Happens!")
 fenetre.geometry("400x500")
+fenetre.configure(bg="#DDF8FF")
 style = ttk.Style()
 style.theme_use("clam")
 style.configure(
@@ -164,18 +165,26 @@ style.configure(
     troughcolor="#D9F8FF"
 )
 
-frame_principal = tk.Frame(fenetre)
+frame_principal = tk.Frame(
+    fenetre,
+    bg="#DDF8FF"
+    )
 frame_principal.pack()
-frame_reglages = tk.Frame(fenetre)
+frame_reglages = tk.Frame(
+    fenetre,
+    bg="#DDF8FF",
+    )
 frame_reglages.pack()
 titre = tk.Label (
     frame_principal,
     text="Bienvenue sur Sip Happens!",
+    bg="#DDF8FF",
     font=("Segoe UI", 20, "bold")
 )
-titre.pack()
+titre.pack(pady=(30, 20))
 texte_objectif = tk.Label(
     frame_reglages,
+    bg="#DDF8FF",
     text="objectif du jour en ml"
 )
 texte_objectif.pack()
@@ -190,6 +199,7 @@ bouton_objectif = tk.Button(
 bouton_objectif.pack()
 texte_taille_verre = tk.Label(
     frame_reglages,
+    bg="#DDF8FF",
     text="Taille du verre en ml"
 )
 texte_taille_verre.pack()
@@ -207,6 +217,7 @@ choix_taille_verre.bind(
 choix_taille_verre.pack()
 texte_intervalle = tk.Label(
     frame_reglages,
+    bg="#DDF8FF",
     text="Fréquence des rappels"
 )
 texte_intervalle.pack()
@@ -246,11 +257,17 @@ frame_reglages.pack_forget()
 
 compteur = tk.Label (
     frame_principal,
-    text=f"{quantite_bue} ml / {objectif} ml"
+    bg="#DDF8FF",
+    text=f"{quantite_bue} ml / {objectif} ml",
+    font=("Segoe UI", 16, "bold"),
+    fg="#007EA7"
     )
-compteur.pack ()
+compteur.pack (pady=10)
 pourcentage = tk.Label (
     frame_principal,
+    bg="#DDF8FF",
+    font=('Segoe UI', 13, "bold"),
+    fg="#00AFCF",
     text=f"{progression_initiale:.0f}%")
 pourcentage.pack ()
 barre_progression = ttk.Progressbar(
@@ -264,9 +281,21 @@ barre_progression.pack()
 bouton_boire = tk.Button (
     frame_principal,
     text="Je viens de boire 💦", 
+    font=("Segoe UI", 14, "bold"),
+    bg="#20CFFF",
+    fg="#003B4D",
+    activebackground="#00AFCF",
+    activeforeground="white",
+    width=22,
+    height=2,
+    borderwidth=2,
+    relief="solid",
+    highlightbackground="#007EA7",
+    highlightthickness=2,
+    cursor="hand2",
     command=enregistrer_verre
     )
-bouton_boire.pack()
+bouton_boire.pack(pady=(25, 10))
 bouton_annuler = tk.Button(
     frame_principal,
     text="Annuler le dernier verre",
