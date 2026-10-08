@@ -1,15 +1,38 @@
 print ("Welcome to Sip Happens!")
-import json
 import ctypes
+import winsound
 from datetime import date
 from pathlib import Path
-import tkinter as tk
 import customtkinter as ctk
 from tkinter import messagebox
 from PIL import Image
+from gestion_donnees import (
+    ajouter_verre,
+    annuler_dernier_verre,
+    chemin_donnees_utilisateur,
+    charger_donnees,
+    sauvegarder_donnees as ecrire_donnees,
+)
 
-DOSSIER_POLICES = Path(__file__).parent / "assets" / "fonts"
-DOSSIER_MASCOTTE = Path(__file__).parent / "assets" / "mascotte"
+DOSSIER_APPLICATION = Path(__file__).resolve().parent
+DOSSIER_POLICES = DOSSIER_APPLICATION / "assets" / "fonts"
+DOSSIER_MASCOTTE = DOSSIER_APPLICATION / "assets" / "mascotte"
+DOSSIER_SONS = DOSSIER_APPLICATION / "assets" / "sounds"
+SON_BULLE = DOSSIER_SONS / "bulle.wav"
+CHEMIN_DONNEES = chemin_donnees_utilisateur()
+ANCIEN_CHEMIN_DONNEES = DOSSIER_APPLICATION / "donnees.json"
+
+
+def jouer_son_bulle():
+    if son_actif and SON_BULLE.exists():
+        try:
+            winsound.PlaySound(
+                str(SON_BULLE),
+                winsound.SND_FILENAME | winsound.SND_ASYNC
+            )
+        except RuntimeError:
+            # Le suivi reste utilisable si Windows ne peut pas lire le son.
+            pass
 
 def charger_polices():
     fichiers_polices = [
@@ -19,42 +42,52 @@ def charger_polices():
     ]
 
     for fichier_police in fichiers_polices:
-        ctypes.windll.gdi32.AddFontResourceExW(
-            str(fichier_police),
-            0x10,
-            0
-        )
+        if fichier_police.exists():
+            try:
+                ctypes.windll.gdi32.AddFontResourceExW(
+                    str(fichier_police),
+                    0x10,
+                    0
+                )
+            except (AttributeError, OSError):
+                pass
 
 charger_polices()
 
-try:
-    with open("donnees.json", "r", encoding="utf-8") as fichier:
-        donnees = json.load (fichier)
-        objectif = donnees.get("objectif", 2000)
-        taille_verre = donnees.get("taille_verre", 250)
-        minutes_rappel = donnees.get("minutes_rappel", 30)
-        rappels_actifs = donnees.get ("rappels_actifs", True)
-        date_sauvegardee = donnees.get("date")
-        date_aujourdhui = date.today().isoformat()
-        if date_sauvegardee == date_aujourdhui:
-            quantite_bue = donnees.get("quantite_bue", 0)
-        else:
-            quantite_bue = 0
-except FileNotFoundError:
-    quantite_bue = 0
-    objectif = 2000
-    taille_verre = 250
-    minutes_rappel = 30
-    rappels_actifs =  True
+donnees = charger_donnees(
+    CHEMIN_DONNEES,
+    ancien_chemin=ANCIEN_CHEMIN_DONNEES,
+)
+quantite_bue = donnees["quantite_bue"]
+objectif = donnees["objectif"]
+taille_verre = donnees["taille_verre"]
+minutes_rappel = donnees["minutes_rappel"]
+rappels_actifs = donnees["rappels_actifs"]
+son_actif = donnees["son_actif"]
+date_courante = donnees["date"]
+dernier_verre = donnees["dernier_verre"]
+historique = donnees["historique"]
 progression_initiale = (quantite_bue / objectif) * 100
 intervalle_rappel = minutes_rappel * 60 * 1000
 rappel_programme = None
 retour_mascotte_programme = None
 
+messages_mascotte = {
+    "neutre": ("C'est parti pour le défi !", "#006DFF"),
+    "heureux": ("Bien joué, un verre de plus !", "#00AEEB"),
+    "triste": ("Bois ! Tu vas finir tout desséché !", "#8B00FF"),
+    "objectif": ("Youhouuuuu ! Objectif atteint !", "#8B00FF"),
+}
+
 def changer_mascotte(etat):
     nouvelle_image = images_mascotte[etat]
     label_mascotte.configure(image=nouvelle_image)
     label_mascotte.image = nouvelle_image
+    texte_mascotte, couleur_mascotte = messages_mascotte[etat]
+    message_mascotte.configure(
+        text=texte_mascotte,
+        text_color=couleur_mascotte
+    )
     label_mascotte.update_idletasks()
 
 def revenir_mascotte_neutre():
@@ -65,16 +98,47 @@ def revenir_mascotte_neutre():
 
     retour_mascotte_programme = None
 
-def enregistrer_verre():
-    global quantite_bue
-    global retour_mascotte_programme
-
-    quantite_bue = quantite_bue + taille_verre
+def actualiser_progression():
     progression = (quantite_bue / objectif) * 100
     pourcentage.configure(text=f"{progression:.0f}%")
     compteur.configure(text=f"{quantite_bue} ml / {objectif} ml")
     barre_progression.set(min(quantite_bue / objectif, 1))
-    print (quantite_bue)
+
+    if quantite_bue >= objectif:
+        titre.configure(text="Youhou! Objectif atteint!🥳")
+    else:
+        titre.configure(text="Bienvenue sur Sip Happens!")
+
+def verifier_changement_jour(programmer=True):
+    global quantite_bue
+    global dernier_verre
+    global date_courante
+
+    aujourd_hui = date.today().isoformat()
+    if date_courante != aujourd_hui:
+        if quantite_bue > 0:
+            historique[date_courante] = quantite_bue
+            while len(historique) > 30:
+                del historique[sorted(historique)[0]]
+        quantite_bue = 0
+        dernier_verre = 0
+        date_courante = aujourd_hui
+        actualiser_progression()
+        changer_mascotte("neutre")
+        sauvegarder_donnees()
+
+    if programmer:
+        fenetre.after(60_000, verifier_changement_jour)
+
+def enregistrer_verre():
+    global quantite_bue
+    global dernier_verre
+    global retour_mascotte_programme
+
+    verifier_changement_jour(programmer=False)
+    jouer_son_bulle()
+    quantite_bue, dernier_verre = ajouter_verre(quantite_bue, taille_verre)
+    actualiser_progression()
     sauvegarder_donnees()
 
     if quantite_bue >= objectif:
@@ -93,19 +157,19 @@ def enregistrer_verre():
 
 def annuler_verre():
     global quantite_bue
+    global dernier_verre
 
-    if quantite_bue >= taille_verre:
-        quantite_bue = quantite_bue - taille_verre
-        progression = (quantite_bue / objectif) * 100
-        pourcentage.configure(text=f"{progression:.0f}%")
-        compteur.configure(text=f"{quantite_bue} ml / {objectif} ml")
-        barre_progression.set(min(quantite_bue / objectif, 1))
+    verifier_changement_jour(programmer=False)
+    ancienne_quantite = quantite_bue
+    quantite_bue, dernier_verre = annuler_dernier_verre(
+        quantite_bue, dernier_verre
+    )
+    if quantite_bue != ancienne_quantite:
+        actualiser_progression()
 
         if quantite_bue < objectif:
-            titre.configure(text="Bienvenue sur Sip Happens!")
             changer_mascotte("neutre")
 
-        print(quantite_bue)
         sauvegarder_donnees()
 
 def sauvegarder_donnees():
@@ -115,11 +179,19 @@ def sauvegarder_donnees():
         "taille_verre": taille_verre,
         "minutes_rappel": minutes_rappel,
         "rappels_actifs": rappels_actifs,
-        "date": date.today().isoformat()
+        "son_actif": son_actif,
+        "date": date_courante,
+        "dernier_verre": dernier_verre,
+        "historique": historique,
     }
 
-    with open("donnees.json","w", encoding="utf-8") as fichier:
-        json.dump(donnees, fichier)
+    try:
+        ecrire_donnees(donnees, CHEMIN_DONNEES)
+    except OSError as erreur:
+        messagebox.showerror(
+            "Sauvegarde impossible",
+            f"Sip Happens n'a pas pu sauvegarder vos données.\n\n{erreur}",
+        )
 def modifier_objectif():
     global objectif
 
@@ -138,21 +210,26 @@ def modifier_objectif():
             "L'objectif doit être supérieur à 0 ml"
         )
         return
+    if nouvel_objectif > 20_000:
+        messagebox.showerror(
+            "Valeur incorrecte",
+            "L'objectif ne peut pas dépasser 20 000 ml"
+        )
+        return
+    verifier_changement_jour(programmer=False)
     objectif = nouvel_objectif
-    compteur.configure(text=f"{quantite_bue} ml / {objectif} ml")
-
-    progression = (quantite_bue / objectif) * 100
-    pourcentage.configure(text=f"{progression:.0f}%")
-
-    barre_progression.set(min(quantite_bue / objectif, 1))
-    print(objectif)
+    actualiser_progression()
+    changer_mascotte("objectif" if quantite_bue >= objectif else "neutre")
     sauvegarder_donnees()
 
 def modifier_taille_verre():
     global taille_verre
 
-    taille_verre = int(choix_taille_verre.get())
-    print (taille_verre)
+    try:
+        taille_verre = int(choix_taille_verre.get())
+    except ValueError:
+        choix_taille_verre.set(str(taille_verre))
+        return
     sauvegarder_donnees()
 
 def modifier_intervalle():
@@ -160,7 +237,11 @@ def modifier_intervalle():
     global minutes_rappel
     global rappel_programme
 
-    minutes_rappel = int(choix_intervalle.get())
+    try:
+        minutes_rappel = int(choix_intervalle.get())
+    except ValueError:
+        choix_intervalle.set(str(minutes_rappel))
+        return
     intervalle_rappel = minutes_rappel * 60 * 1000
 
     if rappel_programme is not None:
@@ -174,7 +255,6 @@ def modifier_intervalle():
     else:
         rappel_programme = None
 
-    print (intervalle_rappel)
     sauvegarder_donnees()
 
 def basculer_rappels():
@@ -198,13 +278,73 @@ def basculer_rappels():
 
     sauvegarder_donnees()    
 
+def basculer_son():
+    global son_actif
+
+    son_actif = not son_actif
+    bouton_son.configure(
+        text="Désactiver le son" if son_actif else "Activer le son"
+    )
+    sauvegarder_donnees()
+
 def afficher_reglages():
     frame_principal.pack_forget()
+    frame_historique.pack_forget()
     frame_reglages.pack()
 
 def afficher_principal():
     frame_reglages.pack_forget()
+    frame_historique.pack_forget()
     frame_principal.pack()    
+
+def afficher_historique():
+    frame_principal.pack_forget()
+    frame_reglages.pack_forget()
+
+    for enfant in contenu_historique.winfo_children():
+        enfant.destroy()
+
+    jours = dict(historique)
+    if quantite_bue > 0:
+        jours[date_courante] = quantite_bue
+
+    if not jours:
+        ctk.CTkLabel(
+            contenu_historique,
+            text="Aucune consommation enregistrée pour le moment.",
+            font=ctk.CTkFont(family="Patrick Hand", size=18),
+            text_color="#006DFF",
+            wraplength=300,
+        ).pack(pady=24)
+    else:
+        for jour, quantite in sorted(jours.items(), reverse=True):
+            annee, mois, numero_jour = jour.split("-")
+            texte_jour = "Aujourd'hui" if jour == date_courante else (
+                f"{numero_jour}/{mois}/{annee}"
+            )
+            ctk.CTkLabel(
+                contenu_historique,
+                text=f"{texte_jour}    {quantite} ml",
+                width=300,
+                height=40,
+                anchor="w",
+                font=ctk.CTkFont(family="Patrick Hand", size=19),
+                text_color="#003CFF",
+            ).pack(padx=12, pady=3)
+
+    frame_historique.pack()
+
+def tester_rappel():
+    verifier_changement_jour(programmer=False)
+    quantite_avant_rappel = quantite_bue
+
+    messagebox.showinfo(
+        "Sip Happens!",
+        "Petite pause : Pense à boire de l'eau!"
+    )
+
+    if quantite_bue == quantite_avant_rappel and quantite_bue < objectif:
+        changer_mascotte("triste")
 
 ctk.set_appearance_mode("light")
 
@@ -212,6 +352,24 @@ fenetre = ctk.CTk()
 fenetre.title("Sip Happens!")
 fenetre.geometry("400x680")
 fenetre.configure(fg_color="#DDF8FF")
+
+ressources_requises = [
+    DOSSIER_MASCOTTE / "axolotl-neutre.png",
+    DOSSIER_MASCOTTE / "axolotl-triste.png",
+    DOSSIER_MASCOTTE / "axolotl-heureux.png",
+    DOSSIER_MASCOTTE / "axolotl-objectif.png",
+]
+ressources_manquantes = [
+    fichier.name for fichier in ressources_requises if not fichier.exists()
+]
+if ressources_manquantes:
+    messagebox.showerror(
+        "Ressources manquantes",
+        "Ces mascottes sont introuvables :\n"
+        + "\n".join(ressources_manquantes),
+    )
+    fenetre.destroy()
+    raise SystemExit(1)
 
 frame_principal = ctk.CTkFrame(
     fenetre,
@@ -223,6 +381,11 @@ frame_reglages = ctk.CTkFrame(
     fg_color="#DDF8FF",
     )
 frame_reglages.pack()
+frame_historique = ctk.CTkFrame(
+    fenetre,
+    fg_color="#DDF8FF",
+)
+frame_historique.pack()
 titre = ctk.CTkLabel(
     frame_principal,
     text="Bienvenue sur Sip Happens!",
@@ -264,6 +427,16 @@ label_mascotte = ctk.CTkLabel(
     fg_color="transparent"
 )
 label_mascotte.pack(pady=(0, 4))
+
+message_initial, couleur_initiale = messages_mascotte[etat_mascotte_initial]
+message_mascotte = ctk.CTkLabel(
+    frame_principal,
+    text=message_initial,
+    fg_color="transparent",
+    font=ctk.CTkFont(family="Patrick Hand", size=20),
+    text_color=couleur_initiale
+)
+message_mascotte.pack(pady=(0, 4))
 
 titre_reglages = ctk.CTkLabel(
     frame_reglages,
@@ -389,6 +562,38 @@ bouton_rappels = ctk.CTkButton(
 )
 bouton_rappels.pack(pady=(0, 8))
 
+bouton_tester_rappel = ctk.CTkButton(
+    frame_reglages,
+    text="Tester un rappel",
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    width=220,
+    height=38,
+    corner_radius=13,
+    fg_color="#20CFFF",
+    hover_color="#00AFCF",
+    text_color="#003CFF",
+    border_width=2,
+    border_color="#007EA7",
+    command=tester_rappel
+)
+bouton_tester_rappel.pack(pady=(0, 8))
+
+bouton_son = ctk.CTkButton(
+    frame_reglages,
+    text="Désactiver le son" if son_actif else "Activer le son",
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    width=220,
+    height=38,
+    corner_radius=13,
+    fg_color="#20CFFF",
+    hover_color="#00AFCF",
+    text_color="#003CFF",
+    border_width=2,
+    border_color="#007EA7",
+    command=basculer_son,
+)
+bouton_son.pack(pady=(0, 8))
+
 bouton_retour = ctk.CTkButton(
     frame_reglages,
     text="Retour",
@@ -404,6 +609,40 @@ bouton_retour = ctk.CTkButton(
 bouton_retour.pack(pady=(0, 12))
 
 frame_reglages.pack_forget()
+
+titre_historique = ctk.CTkLabel(
+    frame_historique,
+    text="Historique",
+    fg_color="transparent",
+    font=ctk.CTkFont(family="Kalam", size=28, weight="bold"),
+    text_color="#8B00FF",
+)
+titre_historique.pack(pady=(24, 14))
+
+contenu_historique = ctk.CTkScrollableFrame(
+    frame_historique,
+    width=330,
+    height=490,
+    fg_color="#DDF8FF",
+    scrollbar_button_color="#20CFFF",
+    scrollbar_button_hover_color="#00AFCF",
+)
+contenu_historique.pack(padx=20)
+
+bouton_retour_historique = ctk.CTkButton(
+    frame_historique,
+    text="Retour",
+    font=ctk.CTkFont(family="Patrick Hand", size=18),
+    width=220,
+    height=38,
+    corner_radius=13,
+    fg_color="#8B00FF",
+    hover_color="#6D28D9",
+    text_color="white",
+    command=afficher_principal,
+)
+bouton_retour_historique.pack(pady=12)
+frame_historique.pack_forget()
 
 
 compteur = ctk.CTkLabel(
@@ -484,9 +723,26 @@ bouton_ouvrir_reglages = ctk.CTkButton(
 )
 bouton_ouvrir_reglages.pack(side="left", padx=8)
 
+bouton_historique = ctk.CTkButton(
+    frame_principal,
+    text="Historique",
+    font=ctk.CTkFont(family="Patrick Hand", size=17),
+    width=260,
+    height=40,
+    corner_radius=14,
+    fg_color="#20CFFF",
+    hover_color="#00AFCF",
+    text_color="#003CFF",
+    border_width=2,
+    border_color="#007EA7",
+    command=afficher_historique,
+)
+bouton_historique.pack(pady=(0, 10))
+
 def afficher_rappel():
     global rappel_programme
 
+    verifier_changement_jour(programmer=False)
     quantite_avant_rappel = quantite_bue
 
     messagebox.showinfo(
@@ -511,4 +767,11 @@ if rappels_actifs:
         afficher_rappel
     )
 
+def fermer_application():
+    sauvegarder_donnees()
+    fenetre.destroy()
+
+fenetre.protocol("WM_DELETE_WINDOW", fermer_application)
+verifier_changement_jour()
+sauvegarder_donnees()
 fenetre.mainloop()

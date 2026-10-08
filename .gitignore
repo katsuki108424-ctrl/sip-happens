@@ -1,4 +1,9 @@
 donnees.json
-_pycache_/
-*.pyc 
+__pycache__/
+*.pyc
 .agents/
+.venv/
+venv/
+*.tmp
+build/
+dist/
